@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>YO TEST</title>
+  <style>
+    body { font-family: sans-serif; margin: 20px; }
+    canvas { border: 1px solid #ccc; margin-top: 10px; }
+  </style>
+</head>
+<body>
+  <h2>Upload Image </h2>
+  <input type="file" id="imageInput">
+  <button onclick="uploadImage()">Upload</button>
+
+  <div id="result"></div>
+  <canvas id="canvas"></canvas>
+
+<script>
+async function uploadImage() {
+  const input = document.getElementById("imageInput");
+  if (!input.files[0]) {
+    alert("Please select an image first!");
+    return;
+  }
+
+  const formData = new FormData();
+  formData.append("image", input.files[0]);
+
+  const response = await fetch("/detect_objects", { method: "POST", body: formData });
+  const data = await response.json();
+
+  if (data.error) {
+    alert(data.error);
+    return;
+  }
+
+  // Hiển thị thông tin detect
+  document.getElementById("result").innerText = JSON.stringify(data.detections, null, 2);
+
+  // Vẽ ảnh + bounding boxes
+  const img = new Image();
+  img.onload = () => {
+    const canvas = document.getElementById("canvas");
+    canvas.width = img.width;
+    canvas.height = img.height;
+    const ctx = canvas.getContext("2d");
+    ctx.drawImage(img, 0, 0);
+
+    data.detections.forEach(det => {
+      const {x1, y1, x2, y2} = det.bbox;
+      ctx.strokeStyle = "red";
+      ctx.lineWidth = 2;
+      ctx.strokeRect(x1, y1, x2-x1, y2-y1);
+      ctx.fillStyle = "red";
+      ctx.fillText(det.class_name + " " + det.confidence.toFixed(2), x1, y1-5);
+    });
+  };
+  img.src = "data:image/jpeg;base64," + data.image_base64;
+}
+</script>
+</body>
+</html>
